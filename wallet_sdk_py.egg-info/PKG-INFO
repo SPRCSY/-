@@ -1,0 +1,13 @@
+Metadata-Version: 1.1
+Name: wallet-sdk-py
+Version: 2.0.1
+Summary: Python SDKs for Blockchain Wallet.
+Home-page: https://github.com/arxanchain/wallet-sdk-py/
+Author: UNKNOWN
+Author-email: UNKNOWN
+License: UNKNOWN
+Download-URL: https://github.com/arxanchain/wallet-sdk-py/
+Description: # -
+        基于arxanchain技术
+        
+Platform: any
