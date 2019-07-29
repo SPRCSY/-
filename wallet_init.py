@@ -1,9 +1,11 @@
 #encoding:utf-8
-from api.wallet import WalletClient
-from rest.api.api import Client
+import csv
 import json
 import os
+
 import requests
+from api.wallet import WalletClient
+from rest.api.api import Client
 
 apikey = "i06tyGPHM1533007579"
 cert_path = "D:\\Python2.7\\Lib\\site-packages\\py_common-3.0-py2.7.egg\\cryption\\ecc\\certs"
@@ -16,12 +18,22 @@ ent_sign_param = {
 }
 
 class WalletInit():
-    def __init__(self,apikey,cert_path,ip_addr,ent_sign_param):
-        self.apikey = apikey
-        self.cert_path = cert_path
-        self.ip_addr = ip_addr
-        self.ent_sign_param = ent_sign_param
-        self.client = Client(apikey, cert_path, ent_sign_param, ip_addr)
+    def __init__(self,):
+        #self.apikey = apikey
+        #self.cert_path = cert_path
+        #self.ip_addr = ip_addr
+        with open('api_data.csv','rb',encoding='utf-8') as f:
+            reader= csv.DictReader(f)
+            js = dict(reader)
+        self.apikey = js['apikey']
+        self.cert_path = js['cert_path']
+        self.ip_addr = js['ip_addr']
+        self.__creator = js['creator']
+        self.__created = js['created']
+        self.__nonce = js['nonce']
+        self.__privateB64 = js['privateB64']
+        self.ent_sign_param = {"creator":self.__creator , "created":self.__created, "nonce":self.__nonce ,"privateB64":self.__privateB64}
+        self.client = Client(self.apikey, self.cert_path, self.ent_sign_param, self.ip_addr)
         self.walletclient = WalletClient(self.client)
         self.header = {"Bc-Invoke-Mode": "sync"}
 
@@ -29,66 +41,67 @@ class WalletInit():
         self.__p = p
         print "失败,原因是",self.__p["ErrMessage"],"错误码：",self.__p["ErrCode"]
 
-    def register(self, id, access, secret, type, phone=None, email=None, ):
-        self.__id=id
+    #注册钱包
+    def register(self, id_number,access, secret, usertype, save=0):
         self.__access=access
+        self.__id = id_number #填身份证号码
         self.__password = secret
-        self.__type = type
-        self.__phone = phone
-        self.__email = email
+        self.__type = usertype #"Organization" / "Person" / "Dependent" / "Independent"
+        self.__save = save
         self.__body = {
-                    "id":self.__id,
-                    "access": self.__access,
-                    "phone":self.__phone,
-                    "email":self.__email , 
-                    "password":self.__password, 
+                    "id":"",
+                    "access": self.__access, #钱包用户名称
+                    "password":self.__password, #钱包登录口令 (由8-16位英文大小写字母和数字组成，必须同时包含大小写字母和数字)
                     "type":self.__type,#建议用复选框传字符串进来，选项在下方注释  
-                    }
-        '''
-        body = {
-            "id":raw_input("请输入您的身份证号码:"),
-            "access":raw_input("请设置您的用户名4-36位"),
-            "phone":raw_input("(可选) 设置用户手机号："),
-            "email":raw_input("(可选) 设置用户Email："),
-            "secret":raw_input("请设置您的登录密码(由8-16位英文大小写字母和数字组成，必须同时包含大小写字母和数字)：\n"), 
-                # 普通用户密码, 由8-16位英文大小写字母和数字组成，必须同时包含大小写字母和数字
-            "type":raw_input("请输入您的用户类型(Organization/Person/Dependent/Independent)：\n"), # 类型
-        } 
-        '''
+                    "public_key":  { #如果没有提供，则由服务自动生成
+                        "usage": "", #公钥的使用用途
+                        "key_type": "", #公钥的类型
+                        "public_key_data": "" #钱包公钥（ED25519，Base64编码）
+                    }            
+        }
+        
         _,r = self.walletclient.register(self.header,self.__body)
         print "您的信息为\n",r
-        with open('wallet_did.json',"w") as f:
-            json.dump(r,f)
-        print "请妥善保管您的用户名、密码、id和did\n"
+        if(self.__save == 1):
+            with open('wallet_did.txt',"wb") as f:
+                json.dump(r,f) #注册完成后用户名密码和did会被存放在工作目录下一个叫wallet_did.txt的文件中
+        #print "请妥善保管您的用户名、密码、id和did\n"
 
-    def login(self, access, secret, did, ):
-    #access 用户名， secret 密码，did：钱包did
+    def login(self, access=None , secret=None, did=None):
+        self.__access=access
+        self.__secret=secret
+        self.__did=did
         body={"credential": {"value": {"access": access, "secret": secret}}}
         r = requests.post(ip_addr+"/fred/v1/auth/token", json=body)
         p=json.loads(r.text)
-        if p["ErrCode"] != 0:
+        if p["ErrCode"] == 0:
            # print "登录成功，信息为：",p
             with open('login.json','wb') as f:
                 f.write(r.text)
-            return p["token"]["value"],did  
+            with open('cache/login_temp.json','wb') as f:
+                json.dump(json.dumps({"access":self.__access, "secret":self.__secret, "did":self.__did}),f)
+            return p["token"]["value"]
+        else:
+            #失败，重新登陆
+            pass  
 
+    #查询区块详情
+    #XAuthToken,DID = login()
+    #XAuthToken = json.load(login)["token"]["value"]
     def query_block_detials(self,XAuthToken,BlockCode):
         self.__XAuthToken = XAuthToken
-        self.__BlockCode = BlockCode #传入区块编号
-        print "查询区块详情"
+        self.__BlockCode = BlockCode #传入区块编号 
         #n=raw_input("输入区块编号：")
         self.__headers={'X-Auth-Token' : self.__XAuthToken}
         r=requests.get(ip_addr+"/chain-monitor/v1/chain/block_detail?height="+self.__BlockCode, headers=self.__headers)
-        print "查询结果:\n",r.text
+        return r
 
+    #"查询交易详情"
     def query_transaction_details(self,transaction_id):
-        print "查询交易详情"
+        print 
         self.__transaction_id = transaction_id #交易ID
         _, resp = self.walletclient.query_txn_logs_with_id({"Bc-Invoke-Mode":"sync"}, type_="" ,id_=transaction_id,) # 交易ID
         print resp.text
-
-    def create_poe(self):
-        print "unfinished"
 
     '''
     def main():
@@ -107,7 +120,7 @@ print "欢迎使用区块链医疗存证系统"
 answer0=input("请问您是否已经注册？\n  未注册请扣0注册，已注册用户请扣1登录:")
 if answer0 == 0:
     register()
-XAuthToken,DID = login()
-XAuthToken = json.load(login)["token"]["value"]
+#XAuthToken,DID = login()
+#XAuthToken = json.load(login)["token"]["value"]
 main()
 '''

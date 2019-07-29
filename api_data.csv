@@ -1,0 +1,2 @@
+apikey, cert_path, ip_addr, creator, created, nonce, privateB64
+"i06tyGPHM1533007579","D:\\Python2.7\\Lib\\site-packages\\py_common-3.0-py2.7.egg\\cryption\\ecc\\certs","http://139.198.15.132:9143","did:axn:a010d9e9-3c70-4b57-bbc2-b947f762da2d", "LMIumn3AvQoHZHL4dxWw2DHv","nonce","bZnw/gJ63EPho9D+ts51Dakx+aYr3F8SLfeACVY6qLh7vxVEm46zvYTBfwo5Du0vu6mCVd9v0Q/EB+j7TuR0yA=="
